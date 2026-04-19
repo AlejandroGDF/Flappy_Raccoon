@@ -1,4 +1,4 @@
-package ni.edu.uam.Flappy_Raccoon.ui.theme
+package ni.edu.uam.flappy_raccoon.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

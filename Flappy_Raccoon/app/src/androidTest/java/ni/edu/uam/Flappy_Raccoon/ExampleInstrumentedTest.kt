@@ -1,4 +1,4 @@
-package ni.edu.uam.Flappy_Raccoon
+package ni.edu.uam.flappy_raccoon
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

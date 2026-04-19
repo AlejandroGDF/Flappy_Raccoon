@@ -1,4 +1,4 @@
-package ni.edu.uam.Flappy_Raccoon.ui.theme
+package ni.edu.uam.flappy_raccoon.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

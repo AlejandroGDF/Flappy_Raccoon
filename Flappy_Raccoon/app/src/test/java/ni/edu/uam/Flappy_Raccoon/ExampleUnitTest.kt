@@ -1,4 +1,4 @@
-package ni.edu.uam.Flappy_Raccoon
+package ni.edu.uam.flappy_raccoon
 
 import org.junit.Test
 

@@ -1,6 +1,8 @@
-package ni.edu.uam.Flappy_Raccoon
+package ni.edu.uam.flappy_raccoon
 
+import android.annotation.SuppressLint
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -18,20 +20,77 @@ data class Pipe(
     var passed: Boolean = false
 )
 
+// Añadimos gameOverRes para personalizar la pantalla de derrota
+data class Skin(val imageRes: Int, val name: String, val gameOverRes: Int = R.drawable.gameover)
+
+@SuppressLint("AutoboxingStateCreation")
 class GameViewModel : ViewModel() {
-    var birdY by mutableStateOf(500f)
-    var birdVelocity by mutableStateOf(0f)
-    var score by mutableStateOf(0)
+    var raccoonY by mutableFloatStateOf(500f)
+    var raccoonVelocity by mutableFloatStateOf(0f)
+    var score by mutableIntStateOf(0)
     var isGameOver by mutableStateOf(false)
     var gameStarted by mutableStateOf(false)
     var isPaused by mutableStateOf(false)
     var countdown by mutableIntStateOf(0)
+    
+    var showSkinSelection by mutableStateOf(false)
+    var currentSkinIndex by mutableIntStateOf(0)
+    
+    val skins = listOf(
+        Skin(R.drawable.raccoon, "Raccoon"),
+        Skin(R.drawable.racc_skin2, "Orange Raccoon", gameOverRes = R.drawable.orangeracc_go),
+        Skin(R.drawable.racc_skin3, "Saiyan Raccoon", gameOverRes = R.drawable.saiyanracc_go),
+        Skin(R.drawable.racc_skin4, "Coco", gameOverRes = R.drawable.coco_go),
+        Skin(R.drawable.racc_skin5, "Cule Raccoon", gameOverRes = R.drawable.culeracc_go),
+        Skin(R.drawable.racc_skin6, "Bruce", gameOverRes = R.drawable.bruce_go)
+    )
 
     val pipes = mutableStateListOf<Pipe>()
 
     private var screenWidth = 0f
     private var screenHeight = 0f
     private var gameJob: Job? = null
+
+    // --- LÓGICA DE DIFICULTAD DINÁMICA ---
+    private fun getCurrentSpeed(): Float {
+        val baseSpeed = GameConstants.PIPE_SPEED
+        return when {
+            score >= 1000 -> baseSpeed * 2.5f
+            score >= 500  -> baseSpeed * 2.2f
+            score >= 200  -> baseSpeed * 2.0f
+            score >= 100  -> baseSpeed * 1.8f
+            score >= 50   -> baseSpeed * 1.6f
+            score >= 30   -> baseSpeed * 1.4f
+            score >= 10   -> baseSpeed * 1.2f
+            else          -> baseSpeed
+        }
+    }
+
+    private fun getCurrentGap(): Float {
+        val baseGap = GameConstants.PIPE_GAP
+        val reduction = when {
+            score >= 200 -> 200f
+            score >= 100 -> 150f
+            score >= 50  -> 100f
+            score >= 30  -> 60f
+            score >= 10  -> 30f
+            else         -> 0f
+        }
+        return (baseGap - reduction).coerceAtLeast(500f)
+    }
+
+    private fun getCurrentPipeDistance(): Float {
+        val baseDistance = GameConstants.PIPE_DISTANCE
+        val reduction = when {
+            score >= 200 -> 300f
+            score >= 100 -> 200f
+            score >= 50  -> 150f
+            score >= 30  -> 100f
+            score >= 10  -> 50f
+            else         -> 0f
+        }
+        return (baseDistance - reduction).coerceAtLeast(750f)
+    }
 
     fun onSizeChanged(width: Float, height: Float) {
         screenWidth = width
@@ -50,8 +109,8 @@ class GameViewModel : ViewModel() {
             gameStarted = true
             isGameOver = false
             isPaused = false
+            showSkinSelection = false
             
-            // Iniciar cuenta regresiva antes de empezar a mover el juego
             for (i in 3 downTo 1) {
                 countdown = i
                 delay(1000)
@@ -67,13 +126,13 @@ class GameViewModel : ViewModel() {
             startGame()
         }
         if (!isGameOver && !isPaused && countdown == 0) {
-            birdVelocity = GameConstants.JUMP_VELOCITY
+            raccoonVelocity = GameConstants.JUMP_VELOCITY
         }
     }
 
     private fun resetGame() {
-        birdY = screenHeight / 2
-        birdVelocity = 0f
+        raccoonY = screenHeight / 2
+        raccoonVelocity = 0f
         score = 0
         isGameOver = false
         isPaused = false
@@ -104,15 +163,17 @@ class GameViewModel : ViewModel() {
         isGameOver = false
         isPaused = false
         countdown = 0
+        showSkinSelection = false
         resetGame()
     }
 
     private fun spawnPipe() {
+        val currentGap = getCurrentGap()
         val minHeight = 150f
-        val maxHeight = (screenHeight - GameConstants.PIPE_GAP - 150f).coerceAtLeast(minHeight)
+        val maxHeight = (screenHeight - currentGap - 150f).coerceAtLeast(minHeight)
         
         val lastHeight = pipes.lastOrNull()?.topHeight ?: (screenHeight / 2)
-        val maxDiff = 350f 
+        val maxDiff = if (score >= 50) 450f else 350f 
         
         val low = (lastHeight - maxDiff).coerceAtLeast(minHeight)
         val high = (lastHeight + maxDiff).coerceAtMost(maxHeight)
@@ -129,21 +190,20 @@ class GameViewModel : ViewModel() {
                     updatePhysics()
                     checkCollisions()
                 }
-                delay(16) // ~60 FPS
+                delay(16)
             }
         }
     }
 
     private fun updatePhysics() {
-        // Bird physics
-        birdVelocity += GameConstants.GRAVITY
-        birdY += birdVelocity
+        raccoonVelocity += GameConstants.GRAVITY
+        raccoonY += raccoonVelocity
 
-        // Pipes physics
+        val currentSpeed = getCurrentSpeed()
         val iterator = pipes.listIterator()
         while (iterator.hasNext()) {
             val pipe = iterator.next()
-            pipe.x -= GameConstants.PIPE_SPEED
+            pipe.x -= currentSpeed 
 
             if (!pipe.passed && pipe.x + GameConstants.PIPE_WIDTH < screenWidth / 4) {
                 pipe.passed = true
@@ -151,47 +211,47 @@ class GameViewModel : ViewModel() {
             }
         }
 
-        // Remove off-screen pipes
         if (pipes.isNotEmpty() && pipes[0].x + GameConstants.PIPE_WIDTH < 0) {
             pipes.removeAt(0)
         }
 
-        // Spawn new pipe
-        if (pipes.isNotEmpty() && pipes.last().x < screenWidth - GameConstants.PIPE_DISTANCE) {
+        if (pipes.isNotEmpty() && pipes.last().x < screenWidth - getCurrentPipeDistance()) {
             spawnPipe()
         }
     }
 
     private fun checkCollisions() {
-        // Floor and Ceiling - Usamos una altura de hitbox reducida
-        if (birdY - GameConstants.BIRD_HITBOX_HEIGHT/2 <= 0 || 
-            birdY + GameConstants.BIRD_HITBOX_HEIGHT/2 >= screenHeight) {
+        if (raccoonY - GameConstants.RACCOON_HITBOX_HEIGHT/2 <= 0 || 
+            raccoonY + GameConstants.RACCOON_HITBOX_HEIGHT/2 >= screenHeight) {
             isGameOver = true
             return
         }
 
-        // Centro visual del pájaro
-        val birdX = screenWidth / 4
-        
-        // Definimos los bordes de la hitbox del pájaro (centrada en su posición visual)
-        val bLeft = birdX - GameConstants.BIRD_HITBOX_WIDTH / 2
-        val bRight = birdX + GameConstants.BIRD_HITBOX_WIDTH / 2
-        val bTop = birdY - GameConstants.BIRD_HITBOX_HEIGHT / 2
-        val bBottom = birdY + GameConstants.BIRD_HITBOX_HEIGHT / 2
+        val raccoonX = screenWidth / 4
+        val bLeft = raccoonX - GameConstants.RACCOON_HITBOX_WIDTH / 2
+        val bRight = raccoonX + GameConstants.RACCOON_HITBOX_WIDTH / 2
+        val bTop = raccoonY - GameConstants.RACCOON_HITBOX_HEIGHT / 2
+        val bBottom = raccoonY + GameConstants.RACCOON_HITBOX_HEIGHT / 2
 
         for (pipe in pipes) {
-            // Hitbox de la papelera (centrada en su ancho visual)
             val pLeft = pipe.x + (GameConstants.PIPE_WIDTH - GameConstants.PIPE_HITBOX_WIDTH) / 2
             val pRight = pLeft + GameConstants.PIPE_HITBOX_WIDTH
             
-            // Verificamos si hay colisión en el eje X
             if (bRight > pLeft && bLeft < pRight) {
-                // Colisión con el tubo superior o inferior
-                if (bTop < pipe.topHeight || bBottom > pipe.topHeight + GameConstants.PIPE_GAP) {
+                val currentGap = getCurrentGap()
+                if (bTop < pipe.topHeight || bBottom > pipe.topHeight + currentGap) {
                     isGameOver = true
                     return
                 }
             }
         }
+    }
+    
+    fun nextSkin() {
+        currentSkinIndex = (currentSkinIndex + 1) % skins.size
+    }
+    
+    fun prevSkin() {
+        currentSkinIndex = if (currentSkinIndex <= 0) skins.size - 1 else currentSkinIndex - 1
     }
 }
