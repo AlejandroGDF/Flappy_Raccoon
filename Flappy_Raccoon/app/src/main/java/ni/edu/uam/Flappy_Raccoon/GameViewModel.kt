@@ -20,7 +20,6 @@ data class Pipe(
     var passed: Boolean = false
 )
 
-// Añadimos gameOverRes para personalizar la pantalla de derrota
 data class Skin(val imageRes: Int, val name: String, val gameOverRes: Int = R.drawable.gameover)
 
 @SuppressLint("AutoboxingStateCreation")
@@ -42,7 +41,8 @@ class GameViewModel : ViewModel() {
         Skin(R.drawable.racc_skin3, "Saiyan Raccoon", gameOverRes = R.drawable.saiyanracc_go),
         Skin(R.drawable.racc_skin4, "Coco", gameOverRes = R.drawable.coco_go),
         Skin(R.drawable.racc_skin5, "Cule Raccoon", gameOverRes = R.drawable.culeracc_go),
-        Skin(R.drawable.racc_skin6, "Bruce", gameOverRes = R.drawable.bruce_go)
+        Skin(R.drawable.racc_skin6, "Bruce", gameOverRes = R.drawable.bruce_go),
+        Skin(R.drawable.racc_skin7, "UAM Raccoon", gameOverRes = R.drawable.uamracc_go)
     )
 
     val pipes = mutableStateListOf<Pipe>()
@@ -51,7 +51,6 @@ class GameViewModel : ViewModel() {
     private var screenHeight = 0f
     private var gameJob: Job? = null
 
-    // --- LÓGICA DE DIFICULTAD DINÁMICA ---
     private fun getCurrentSpeed(): Float {
         val baseSpeed = GameConstants.PIPE_SPEED
         return when {
