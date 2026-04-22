@@ -34,6 +34,7 @@ Selecciona entre una variedad de personajes únicos, cada uno con su propia pers
 - **Coco**
 - **Cule Raccoon**
 - **Bruce (The Jetpack Dog)**
+- **UAM Raccoon**
 
 ### 💀 Experiencia personalizada
 
