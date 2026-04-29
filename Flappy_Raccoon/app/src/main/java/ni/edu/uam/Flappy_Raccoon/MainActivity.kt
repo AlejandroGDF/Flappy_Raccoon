@@ -7,13 +7,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -78,6 +81,9 @@ fun GameScreen(viewModel: GameViewModel) {
     var showOptions by remember { mutableStateOf(false) }
     val clouds = remember { mutableStateListOf<Cloud>() }
 
+    // --- COLOR DE FONDO DINÁMICO ---
+    val skyColor = if (viewModel.isNightMode) Color(0xFF1A1A2E) else Color(0xFF70C5CE)
+
     val scoreTextStyle = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.ExtraBold,
@@ -107,7 +113,7 @@ fun GameScreen(viewModel: GameViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF70C5CE))
+            .background(skyColor)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { 
                 if (viewModel.gameStarted && !viewModel.isGameOver && !viewModel.isPaused && viewModel.countdown == 0) viewModel.jump() 
             }
@@ -118,11 +124,14 @@ fun GameScreen(viewModel: GameViewModel) {
             }
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            clouds.forEach { cloud ->
-                val cloudWidth = 300f * cloud.scale
-                val cloudHeight = 180f * cloud.scale
-                translate(cloud.x - cloudWidth/2, cloud.y) {
-                    with(cloudPainter) { draw(size = Size(cloudWidth, cloudHeight), alpha = 0.5f) }
+            // MOSTRAR NUBES SOLO SI ESTÁ ACTIVO
+            if (viewModel.showClouds) {
+                clouds.forEach { cloud ->
+                    val cloudWidth = 300f * cloud.scale
+                    val cloudHeight = 180f * cloud.scale
+                    translate(cloud.x - cloudWidth/2, cloud.y) {
+                        with(cloudPainter) { draw(size = Size(cloudWidth, cloudHeight), alpha = 0.5f) }
+                    }
                 }
             }
 
@@ -276,7 +285,7 @@ fun GameScreen(viewModel: GameViewModel) {
                     Image(
                         painter = selectSkinTitlePainter,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxWidth(0.9f).height(220.dp), // Aumentar tamaño Select your skin
+                        modifier = Modifier.fillMaxWidth(1f).height(250.dp),
                         contentScale = ContentScale.Fit
                     )
                     
@@ -290,18 +299,18 @@ fun GameScreen(viewModel: GameViewModel) {
                         style = TextStyle(shadow = Shadow(Color.Black, offset = Offset(2f, 2f), blurRadius = 2f))
                     )
 
-                    Spacer(Modifier.height(70.dp))
+                    Spacer(Modifier.height(40.dp))
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceEvenly, // Distribuye el espacio de forma uniforme
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Image(
                             painter = leftArrowPainter, 
                             contentDescription = "Anterior", 
                             modifier = Modifier
-                                .size(100.dp) // Reducido un poquito para que quepa la otra
+                                .size(100.dp)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
@@ -312,7 +321,7 @@ fun GameScreen(viewModel: GameViewModel) {
                         Image(
                             painter = painterResource(id = viewModel.skins[viewModel.currentSkinIndex].imageRes),
                             contentDescription = "Skin actual", 
-                            modifier = Modifier.size(180.dp) // Reducimos el personaje central
+                            modifier = Modifier.size(180.dp)
                         )
                         
                         Image(
@@ -344,15 +353,85 @@ fun GameScreen(viewModel: GameViewModel) {
         }
     }
 
+    // --- NUEVA PANTALLA DE OPCIONES ---
     if (showOptions) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Opciones", color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(16.dp))
-                Text("Pronto actualizaremos esta pagina", color = Color.White.copy(alpha = 0.7f), fontSize = 18.sp)
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                Text("AJUSTES", color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Black, style = TextStyle(shadow = Shadow(Color.DarkGray, offset = Offset(4f, 4f))))
+                
                 Spacer(Modifier.height(40.dp))
-                Image(painter = playButtonPainter, contentDescription = null, modifier = Modifier.width(200.dp).height(80.dp).clickable { showOptions = false }, contentScale = ContentScale.Fit)
+
+                // SECCIÓN DIFICULTAD
+                Text("DIFICULTAD", color = Color.Yellow, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    DifficultyButton("FÁCIL", viewModel.difficulty == Difficulty.PRACTICE) { viewModel.difficulty = Difficulty.PRACTICE }
+                    DifficultyButton("NORMAL", viewModel.difficulty == Difficulty.NORMAL) { viewModel.difficulty = Difficulty.NORMAL }
+                    DifficultyButton("PRO", viewModel.difficulty == Difficulty.HARDCORE) { viewModel.difficulty = Difficulty.HARDCORE }
+                }
+
+                Spacer(Modifier.height(40.dp))
+
+                // SECCIÓN ESCENARIO
+                Text("ESCENARIO", color = Color.Yellow, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(16.dp))
+                
+                OptionToggle("MODO NOCHE", viewModel.isNightMode) { viewModel.isNightMode = !viewModel.isNightMode }
+                Spacer(Modifier.height(12.dp))
+                OptionToggle("MOSTRAR NUBES", viewModel.showClouds) { viewModel.showClouds = !viewModel.showClouds }
+
+                Spacer(Modifier.height(60.dp))
+
+                Image(
+                    painter = acceptButtonPainter, 
+                    contentDescription = "Cerrar", 
+                    modifier = Modifier.width(260.dp).height(90.dp).clickable { showOptions = false }, 
+                    contentScale = ContentScale.Fit
+                )
             }
+        }
+    }
+}
+
+@Composable
+fun DifficultyButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .width(100.dp)
+            .height(50.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) Color(0xFF4CAF50) else Color.DarkGray)
+            .border(2.dp, if (selected) Color.White else Color.Transparent, RoundedCornerShape(12.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun OptionToggle(label: String, active: Boolean, onToggle: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth(0.8f)
+            .height(60.dp)
+            .clip(RoundedCornerShape(15.dp))
+            .background(Color.White.copy(alpha = 0.1f))
+            .clickable { onToggle() }
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+        Box(
+            Modifier
+                .size(45.dp, 25.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(if (active) Color(0xFF4CAF50) else Color.Gray)
+                .padding(4.dp),
+            contentAlignment = if (active) Alignment.CenterEnd else Alignment.CenterStart
+        ) {
+            Box(Modifier.size(17.dp).clip(RoundedCornerShape(50)).background(Color.White))
         }
     }
 }
