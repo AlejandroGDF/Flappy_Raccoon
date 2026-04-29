@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun GameScreen(viewModel: GameViewModel) {
+    // Cargamos todos los recursos visuales aquí para tenerlos a mano
     val pipeBodyPainter = painterResource(id = R.drawable.pipe_low_texture)
     val pipeCapPainter = painterResource(id = R.drawable.pipe_top_texture)
     val cloudPainter = painterResource(id = R.drawable.cloud)
@@ -89,6 +90,7 @@ fun GameScreen(viewModel: GameViewModel) {
     val mainButtonWidth = 320.dp
     val mainButtonHeight = 110.dp
 
+    // Generamos unas nubes aleatorias al inicio para que el fondo no se vea tan vacío
     LaunchedEffect(screenWidth, screenHeight) {
         if (screenWidth > 0 && clouds.isEmpty()) {
             val rows = 3; val cols = 2
@@ -114,10 +116,12 @@ fun GameScreen(viewModel: GameViewModel) {
             .onGloballyPositioned { coordinates ->
                 screenWidth = coordinates.size.width.toFloat()
                 screenHeight = coordinates.size.height.toFloat()
+                // Le pasamos las dimensiones al ViewModel para que sepa dónde poner los tubos
                 viewModel.onSizeChanged(screenWidth, screenHeight)
             }
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
+            // Dibujamos las nubes primero (capa de fondo)
             clouds.forEach { cloud ->
                 val cloudWidth = 300f * cloud.scale
                 val cloudHeight = 180f * cloud.scale
@@ -127,6 +131,7 @@ fun GameScreen(viewModel: GameViewModel) {
             }
 
             if (viewModel.gameStarted || viewModel.isGameOver) {
+                // Lógica para dibujar los tubos de arriba y abajo
                 viewModel.pipes.forEach { pipe ->
                     val capHeight = GameConstants.PIPE_CAP_HEIGHT
                     val capWidth = GameConstants.PIPE_CAP_WIDTH
@@ -167,12 +172,14 @@ fun GameScreen(viewModel: GameViewModel) {
                 val visualWidth = GameConstants.RACCOON_SIZE
                 val visualHeight = (visualWidth / aspectRatio) * 1.2f 
 
+                // El mapache se queda fijo en X (un cuarto de la pantalla) y solo se mueve en Y
                 translate(left = (size.width / 4 - visualWidth / 2), top = (viewModel.raccoonY - visualHeight / 2)) {
                     with(currentRaccoonPainter) { draw(size = Size(visualWidth, visualHeight)) }
                 }
             }
         }
 
+        // Interfaz activa durante la partida (puntos y pausa)
         if (viewModel.gameStarted && !viewModel.isGameOver) {
             Box(Modifier.fillMaxSize()) {
                 Text(
@@ -200,6 +207,7 @@ fun GameScreen(viewModel: GameViewModel) {
             }
         }
 
+        // Menú principal - Solo se muestra si no hemos empezado
         if (!viewModel.gameStarted && !viewModel.isGameOver && !viewModel.showSkinSelection) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Image(painter = menuLogoPainter, contentDescription = null, modifier = Modifier.fillMaxWidth(1f).height(300.dp), contentScale = ContentScale.Fit)
@@ -258,6 +266,7 @@ fun GameScreen(viewModel: GameViewModel) {
             }
         }
 
+        // Pantalla de Game Over
         if (viewModel.isGameOver) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -270,6 +279,7 @@ fun GameScreen(viewModel: GameViewModel) {
             }
         }
 
+        // Selector de personajes/skins
         if (viewModel.showSkinSelection) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 16.dp)) {
