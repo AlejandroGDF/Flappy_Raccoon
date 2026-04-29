@@ -22,6 +22,8 @@ data class Pipe(
 
 data class Skin(val imageRes: Int, val name: String, val gameOverRes: Int = R.drawable.gameover)
 
+enum class Difficulty { PRACTICE, NORMAL, HARDCORE }
+
 @SuppressLint("AutoboxingStateCreation")
 class GameViewModel : ViewModel() {
     // Variables de estado del mapache y el juego
@@ -36,7 +38,11 @@ class GameViewModel : ViewModel() {
     var showSkinSelection by mutableStateOf(false)
     var currentSkinIndex by mutableIntStateOf(0)
     
-    // Lista de personajes disponibles con sus respectivas pantallas de Game Over
+    // --- ESTADOS DE OPCIONES ---
+    var difficulty by mutableStateOf(Difficulty.NORMAL)
+    var isNightMode by mutableStateOf(false)
+    var showClouds by mutableStateOf(true)
+
     val skins = listOf(
         Skin(R.drawable.raccoon, "Raccoon"),
         Skin(R.drawable.racc_skin2, "Orange Raccoon", gameOverRes = R.drawable.orangeracc_go),
@@ -55,7 +61,13 @@ class GameViewModel : ViewModel() {
 
     // La velocidad aumenta según el puntaje para que sea más difícil
     private fun getCurrentSpeed(): Float {
-        val baseSpeed = GameConstants.PIPE_SPEED
+        // En modo práctica la velocidad es reducida y no aumenta
+        if (difficulty == Difficulty.PRACTICE) return GameConstants.PIPE_SPEED * 0.7f
+        
+        // En modo Pro, empezamos con un multiplicador mayor
+        val multiplier = if (difficulty == Difficulty.HARDCORE) 1.5f else 1.0f
+        val baseSpeed = GameConstants.PIPE_SPEED * multiplier
+        
         return when {
             score >= 1000 -> baseSpeed * 2.5f
             score >= 500  -> baseSpeed * 2.2f
@@ -70,7 +82,11 @@ class GameViewModel : ViewModel() {
 
     // El hueco entre tubos se va cerrando poco a poco
     private fun getCurrentGap(): Float {
+        if (difficulty == Difficulty.PRACTICE) return GameConstants.PIPE_GAP * 1.2f
+        
         val baseGap = GameConstants.PIPE_GAP
+        val extraReduction = if (difficulty == Difficulty.HARDCORE) 100f else 0f
+        
         val reduction = when {
             score >= 200 -> 200f
             score >= 100 -> 150f
@@ -79,7 +95,7 @@ class GameViewModel : ViewModel() {
             score >= 10  -> 30f
             else         -> 0f
         }
-        return (baseGap - reduction).coerceAtLeast(500f)
+        return (baseGap - reduction - extraReduction).coerceAtLeast(500f)
     }
 
     private fun getCurrentPipeDistance(): Float {
