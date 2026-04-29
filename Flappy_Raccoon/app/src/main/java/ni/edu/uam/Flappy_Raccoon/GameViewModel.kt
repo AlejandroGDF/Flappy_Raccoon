@@ -24,17 +24,19 @@ data class Skin(val imageRes: Int, val name: String, val gameOverRes: Int = R.dr
 
 @SuppressLint("AutoboxingStateCreation")
 class GameViewModel : ViewModel() {
+    // Variables de estado del mapache y el juego
     var raccoonY by mutableFloatStateOf(500f)
     var raccoonVelocity by mutableFloatStateOf(0f)
     var score by mutableIntStateOf(0)
     var isGameOver by mutableStateOf(false)
     var gameStarted by mutableStateOf(false)
     var isPaused by mutableStateOf(false)
-    var countdown by mutableIntStateOf(0)
+    var countdown by mutableIntStateOf(0) // Contador 3, 2, 1 antes de arrancar
     
     var showSkinSelection by mutableStateOf(false)
     var currentSkinIndex by mutableIntStateOf(0)
     
+    // Lista de personajes disponibles con sus respectivas pantallas de Game Over
     val skins = listOf(
         Skin(R.drawable.raccoon, "Raccoon"),
         Skin(R.drawable.racc_skin2, "Orange Raccoon", gameOverRes = R.drawable.orangeracc_go),
@@ -51,6 +53,7 @@ class GameViewModel : ViewModel() {
     private var screenHeight = 0f
     private var gameJob: Job? = null
 
+    // La velocidad aumenta según el puntaje para que sea más difícil
     private fun getCurrentSpeed(): Float {
         val baseSpeed = GameConstants.PIPE_SPEED
         return when {
@@ -65,6 +68,7 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    // El hueco entre tubos se va cerrando poco a poco
     private fun getCurrentGap(): Float {
         val baseGap = GameConstants.PIPE_GAP
         val reduction = when {
@@ -104,6 +108,7 @@ class GameViewModel : ViewModel() {
             resetGame()
         }
         
+        // Corrutina para manejar el conteo inicial
         viewModelScope.launch {
             gameStarted = true
             isGameOver = false
@@ -120,6 +125,7 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    // Acción de saltar al tocar la pantalla
     fun jump() {
         if (!gameStarted) {
             startGame()
@@ -172,6 +178,7 @@ class GameViewModel : ViewModel() {
         val maxHeight = (screenHeight - currentGap - 150f).coerceAtLeast(minHeight)
         
         val lastHeight = pipes.lastOrNull()?.topHeight ?: (screenHeight / 2)
+        // Intentamos que el siguiente tubo no esté demasiado lejos del anterior para que sea jugable
         val maxDiff = if (score >= 50) 450f else 350f 
         
         val low = (lastHeight - maxDiff).coerceAtLeast(minHeight)
@@ -181,6 +188,7 @@ class GameViewModel : ViewModel() {
         pipes.add(Pipe(screenWidth, topHeight))
     }
 
+    // Bucle principal del juego (corre cada 16ms aprox. para 60fps)
     private fun gameLoop() {
         gameJob?.cancel()
         gameJob = viewModelScope.launch {
@@ -195,15 +203,18 @@ class GameViewModel : ViewModel() {
     }
 
     private fun updatePhysics() {
+        // Aplicamos gravedad al mapache
         raccoonVelocity += GameConstants.GRAVITY
         raccoonY += raccoonVelocity
 
+        // Movemos los tubos a la izquierda
         val currentSpeed = getCurrentSpeed()
         val iterator = pipes.listIterator()
         while (iterator.hasNext()) {
             val pipe = iterator.next()
             pipe.x -= currentSpeed 
 
+            // Si el mapache pasa el tubo, sumamos punto
             if (!pipe.passed && pipe.x + GameConstants.PIPE_WIDTH < screenWidth / 4) {
                 pipe.passed = true
                 score++
@@ -220,12 +231,14 @@ class GameViewModel : ViewModel() {
     }
 
     private fun checkCollisions() {
+        // Si toca el techo o el suelo, pierde
         if (raccoonY - GameConstants.RACCOON_HITBOX_HEIGHT/2 <= 0 || 
             raccoonY + GameConstants.RACCOON_HITBOX_HEIGHT/2 >= screenHeight) {
             isGameOver = true
             return
         }
 
+        // Definimos el cuadro de colisión del mapache
         val raccoonX = screenWidth / 4
         val bLeft = raccoonX - GameConstants.RACCOON_HITBOX_WIDTH / 2
         val bRight = raccoonX + GameConstants.RACCOON_HITBOX_WIDTH / 2
@@ -233,11 +246,13 @@ class GameViewModel : ViewModel() {
         val bBottom = raccoonY + GameConstants.RACCOON_HITBOX_HEIGHT / 2
 
         for (pipe in pipes) {
+            // Cuadro de colisión de los tubos
             val pLeft = pipe.x + (GameConstants.PIPE_WIDTH - GameConstants.PIPE_HITBOX_WIDTH) / 2
             val pRight = pLeft + GameConstants.PIPE_HITBOX_WIDTH
             
             if (bRight > pLeft && bLeft < pRight) {
                 val currentGap = getCurrentGap()
+                // Si está dentro del rango horizontal del tubo, revisamos si choca con la parte de arriba o abajo
                 if (bTop < pipe.topHeight || bBottom > pipe.topHeight + currentGap) {
                     isGameOver = true
                     return
